@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	doors = 9
+	doors = 6
 	show  = false
 	file  = true
 	debug = false
 )
 
 var (
-	rounds           = 1000
+	rounds           = 100
 	reveals          = 1
 	f       *os.File = nil
 )
@@ -201,7 +201,7 @@ func main() {
 		}
 	}
 	var results [][2]float64
-	for range doors - 1 {
+	for range doors - 2 {
 		noSwitchWins := countWins("no switch wins: %f\n", runGantlet(false))
 		switchWins := countWins("switch wins: %f\n", runGantlet(true))
 		results = append(results, [2]float64{noSwitchWins, switchWins})
@@ -246,9 +246,6 @@ func main() {
 		}
 		reveals += 1
 	}
-	if reveals == doors {
-		fmt.Println("not found")
-	}
 	if file {
 		avgNoSwitch, avgSwitch := func() (float64, float64) {
 			sumNo := 0.0
@@ -259,13 +256,17 @@ func main() {
 			}
 			return sumNo / float64(len(results)), sumSw / float64(len(results))
 		}()
+		_, err := f.WriteString(fmt.Sprintf("\nAverages:\nno switching: %.2f\nswitching: %.2f\n", avgNoSwitch, avgSwitch))
+		if err != nil {
+			panic(err)
+		}
 		if avgSwitch > avgNoSwitch {
-			_, err := f.WriteString("\n\nit's better to switch the doors")
+			_, err := f.WriteString("\nit's better to switch the doors")
 			if err != nil {
 				panic(err)
 			}
 		} else {
-			_, err := f.WriteString("\n\nit's better to not switch the doors")
+			_, err := f.WriteString("\nit's better to not switch the doors")
 			if err != nil {
 				panic(err)
 			}
