@@ -59,7 +59,7 @@ func (g game) String() string {
 			}
 			return str
 		}(x)
-		if x != doors - 1 {
+		if x != doors-1 {
 			str += " "
 		}
 	}
@@ -206,12 +206,12 @@ func main() {
 		switchWins := countWins("switch wins: %f\n", runGantlet(true))
 		results = append(results, [2]float64{noSwitchWins, switchWins})
 		if file {
-			_, err := f.WriteString(fmt.Sprintf("no switch: %.2f%%\n", noSwitchWins * 100))
+			_, err := f.WriteString(fmt.Sprintf("no switch: %.2f%%\n", noSwitchWins*100))
 			if err != nil {
 				panic(err)
 			}
 
-			_, err = f.WriteString(fmt.Sprintf("switch: %.2f%%\n", switchWins * 100))
+			_, err = f.WriteString(fmt.Sprintf("switch: %.2f%%\n", switchWins*100))
 			if err != nil {
 				panic(err)
 			}
@@ -226,7 +226,7 @@ func main() {
 				panic(err)
 			}
 
-			_, err = f.WriteString(fmt.Sprintf("is it 50%% better like in original: %t\n", switchWins > noSwitchWins * 1.5))
+			_, err = f.WriteString(fmt.Sprintf("is it 50%% better like in original: %t\n", switchWins > noSwitchWins*1.5))
 			if err != nil {
 				panic(err)
 			}
@@ -236,7 +236,7 @@ func main() {
 				panic(err)
 			}
 
-			if reveals != doors - 1 {
+			if reveals != doors-1 {
 				_, err = f.WriteString("\n")
 				if err != nil {
 					panic(err)
