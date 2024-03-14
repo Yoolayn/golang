@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	rounds           = 10000
+	rounds           = 1000
 	reveals          = 1
 	f       *os.File = nil
 )
@@ -200,9 +200,11 @@ func main() {
 			panic(err)
 		}
 	}
+	var results [][2]float64
 	for range doors - 1 {
 		noSwitchWins := countWins("no switch wins: %f\n", runGantlet(false))
 		switchWins := countWins("switch wins: %f\n", runGantlet(true))
+		results = append(results, [2]float64{noSwitchWins, switchWins})
 		if file {
 			_, err := f.WriteString(fmt.Sprintf("no switch: %.2f%%\n", noSwitchWins * 100))
 			if err != nil {
@@ -224,27 +226,49 @@ func main() {
 				panic(err)
 			}
 
-			_, err = f.WriteString(fmt.Sprintf("fulfills: %t\n", (noSwitchWins > 0.3 && noSwitchWins < 0.5) && (switchWins > 0.5 && switchWins < 0.7)))
+			_, err = f.WriteString(fmt.Sprintf("is it 50%% better like in original: %t\n", switchWins > noSwitchWins * 1.5))
 			if err != nil {
 				panic(err)
 			}
 
-			_, err = f.WriteString("------\n")
+			_, err = f.WriteString(fmt.Sprintf("is it better to switch: %t\n", switchWins > noSwitchWins))
 			if err != nil {
 				panic(err)
 			}
-		}
-		// TODO: fix wrong assumptions
-		// I think it should be where chances are increasing on switch, and not being 2/3 to 1/3
-		// fix it dum dum
-		if (noSwitchWins > 0.3 && noSwitchWins < 0.5) && (switchWins > 0.5 && switchWins < 0.7) {
-			fmt.Println("Spełnia")
-			fmt.Println("doors:", doors, "reveals:", reveals)
-			break
+
+			if reveals != doors - 1 {
+				_, err = f.WriteString("\n")
+				if err != nil {
+					panic(err)
+				}
+			}
+
 		}
 		reveals += 1
 	}
 	if reveals == doors {
 		fmt.Println("not found")
+	}
+	if file {
+		avgNoSwitch, avgSwitch := func() (float64, float64) {
+			sumNo := 0.0
+			sumSw := 0.0
+			for _, y := range results {
+				sumNo += y[0]
+				sumSw += y[1]
+			}
+			return sumNo / float64(len(results)), sumSw / float64(len(results))
+		}()
+		if avgSwitch > avgNoSwitch {
+			_, err := f.WriteString("\n\nit's better to switch the doors")
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			_, err := f.WriteString("\n\nit's better to not switch the doors")
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
 }
