@@ -3,15 +3,21 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
+	"os"
 )
 
 const (
-	doors   = 3
-	reveals = 1
+	doors = 9
+	show  = false
+	file  = true
+	debug = false
 )
 
-var rounds = 1000
+var (
+	rounds           = 10000
+	reveals          = 1
+	f       *os.File = nil
+)
 
 // revealed: 4 chosen: 2 winning: 1
 const (
@@ -24,59 +30,78 @@ type option int
 
 type game [doors]option
 
-func (r game) isStat(n int, stat option) bool {
-	if n < 0 || n >= 3 {
+func (g game) isStat(n int, stat option) bool {
+	if n < 0 || n >= doors {
 		return false
 	}
-	return r[n]&stat == stat
+	return g[n]&stat == stat
 }
 
-func (r game) String() string {
+func (g game) String() string {
 	var str string
-	for x := range r {
-		str += fmt.Sprint(strconv.Itoa(x) + ": ")
-		str += fmt.Sprint(r.isWinning(x), r.isChosen(x), r.isRevealed(x))
-		str += "\n"
+	for x := range g {
+		str += func(x int) string {
+			var str string
+			if g.isWinning(x) {
+				str += "w"
+			} else {
+				str += "-"
+			}
+			if g.isChosen(x) {
+				str += "c"
+			} else {
+				str += "-"
+			}
+			if g.isRevealed(x) {
+				str += "r"
+			} else {
+				str += "-"
+			}
+			return str
+		}(x)
+		if x != doors - 1 {
+			str += " "
+		}
 	}
 	return str
 }
 
-func (r game) isWinning(n int) bool {
-	return r.isStat(n, winning)
+func (g game) isWinning(n int) bool {
+	return g.isStat(n, winning)
 }
 
-func (r game) isChosen(n int) bool {
-	return r.isStat(n, chosen)
+func (g game) isChosen(n int) bool {
+	return g.isStat(n, chosen)
 }
 
-func (r game) isRevealed(n int) bool {
-	return r.isStat(n, revealed)
+func (g game) isRevealed(n int) bool {
+	return g.isStat(n, revealed)
 }
 
-func (r game) isCorrect() bool {
-	for k := range r {
-		if r.isWinning(k) && r.isChosen(k) {
+func (g game) isCorrect() bool {
+	for k := range g {
+		if g.isWinning(k) && g.isChosen(k) {
 			return true
 		}
 	}
 	return false
 }
 
-func (r *game) modifyField(n int, c option, remove ...bool) bool {
-	if n < 0 || n >= 3 {
+func (g *game) modifyField(n int, c option, remove ...bool) bool {
+	if n < 0 || n >= doors {
 		return false
 	}
 
 	if len(remove) >= 1 && remove[0] {
-		if r.isStat(n, c) {
-			(*r)[n] -= c
+		if g.isStat(n, c) {
+			(*g)[n] -= c
 			return true
 		} else {
 			return false
 		}
 	} else {
-		if !r.isStat(n, c) {
-			(*r)[n] += c
+		if !g.isStat(n, c) {
+			(*g)[n] += c
 			return true
 		} else {
 			return false
@@ -84,56 +109,65 @@ func (r *game) modifyField(n int, c option, remove ...bool) bool {
 	}
 }
 
-func (r *game) switchChoice() {
+func (g *game) switchChoice() {
 	newChoices := make([]int, 0)
-	for x := range *r {
-		if !r.isChosen(x) && !r.isRevealed(x) {
+	for x := range *g {
+		if !g.isChosen(x) && !g.isRevealed(x) {
 			newChoices = append(newChoices, x)
 		}
 	}
 
-	for x := range *r {
-		if r.isChosen(x) {
-			r.modifyField(x, chosen, true)
+	for x := range *g {
+		if g.isChosen(x) {
+			g.modifyField(x, chosen, true)
 		}
 	}
 
 	newChoice := newChoices[rand.Intn(len(newChoices))]
-	r.modifyField(newChoice, chosen)
+	g.modifyField(newChoice, chosen)
 }
 
-func (r *game) choose(n int) {
-	r.modifyField(n, chosen)
+func (g *game) choose(n int) {
+	g.modifyField(n, chosen)
 }
 
-func (r *game) reveal() {
-	for range reveals {
-		ok := make([]int, 0)
-		for k := range *r {
-			if !r.isChosen(k) && !r.isWinning(k) {
-				ok = append(ok, k)
-			}
+func (g *game) reveal() {
+	ok := make([]int, 0)
+	for k := range *g {
+		if !g.isChosen(k) && !g.isWinning(k) {
+			ok = append(ok, k)
 		}
-		reveal := ok[rand.Intn(len(ok))]
-		r.modifyField(reveal, revealed)
 	}
+	reveal := ok[rand.Intn(len(ok))]
+	g.modifyField(reveal, revealed)
 }
 
 func newGame() game {
-	r := game{}
-	r[rand.Intn(len(r))] = winning
-	return r
+	g := game{}
+	g[rand.Intn(len(g))] = winning
+	return g
 }
 
 func newRound(strategy bool, scores *[]bool) {
-	r := newGame()
-	nc := rand.Intn(len(r))
-	r.choose(nc)
-	r.reveal()
-	if strategy {
-		r.switchChoice()
+	g := newGame()
+	nc := rand.Intn(len(g))
+	g.choose(nc)
+	for range reveals {
+		g.reveal()
 	}
-	*scores = append(*scores, r.isCorrect())
+	if strategy {
+		g.switchChoice()
+	}
+	*scores = append(*scores, g.isCorrect())
+	if show {
+		fmt.Println(g)
+	}
+	if file && debug {
+		_, err := f.WriteString(g.String() + "\n")
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func runGantlet(strategy bool) []bool {
@@ -144,7 +178,7 @@ func runGantlet(strategy bool) []bool {
 	return scores
 }
 
-func countWins(str string, scores []bool) {
+func countWins(str string, scores []bool) float64 {
 	trues := make([]bool, 0)
 	for x := range scores {
 		if scores[x] {
@@ -152,10 +186,65 @@ func countWins(str string, scores []bool) {
 		}
 	}
 
-	fmt.Printf(str, float64(len(trues))/float64(len(scores)))
+	if show {
+		fmt.Printf(str, float64(len(trues))/float64(len(scores)))
+	}
+	return float64(len(trues)) / float64(len(scores))
 }
 
 func main() {
-	countWins("no switch wins: %f\n", runGantlet(false))
-	countWins("switch wins: %f\n", runGantlet(true))
+	if file {
+		var err error
+		f, err = os.Create("stats.log")
+		if err != nil {
+			panic(err)
+		}
+	}
+	for range doors - 1 {
+		noSwitchWins := countWins("no switch wins: %f\n", runGantlet(false))
+		switchWins := countWins("switch wins: %f\n", runGantlet(true))
+		if file {
+			_, err := f.WriteString(fmt.Sprintf("no switch: %.2f%%\n", noSwitchWins * 100))
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = f.WriteString(fmt.Sprintf("switch: %.2f%%\n", switchWins * 100))
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = f.WriteString(fmt.Sprintf("reveals: %d, doors: %d\n", reveals, doors))
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = f.WriteString(fmt.Sprintf("rounds: %d\n", rounds))
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = f.WriteString(fmt.Sprintf("fulfills: %t\n", (noSwitchWins > 0.3 && noSwitchWins < 0.5) && (switchWins > 0.5 && switchWins < 0.7)))
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = f.WriteString("------\n")
+			if err != nil {
+				panic(err)
+			}
+		}
+		// TODO: fix wrong assumptions
+		// I think it should be where chances are increasing on switch, and not being 2/3 to 1/3
+		// fix it dum dum
+		if (noSwitchWins > 0.3 && noSwitchWins < 0.5) && (switchWins > 0.5 && switchWins < 0.7) {
+			fmt.Println("Spełnia")
+			fmt.Println("doors:", doors, "reveals:", reveals)
+			break
+		}
+		reveals += 1
+	}
+	if reveals == doors {
+		fmt.Println("not found")
+	}
 }
